@@ -1,0 +1,6 @@
+.ghc.environment*
+.stack-work
+*.hi
+*.o
+dist
+dist-newstyle
