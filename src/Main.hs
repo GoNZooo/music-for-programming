@@ -72,7 +72,7 @@ downloadIfNotExists baseDir l = do
       downloadFile l >>= writeResponseToFile (fileName baseDir l)
 
 downloadFile ::
-     (Monad m, MonadHttp m, MonadFileIO m, MonadTerminalIO m, E.MonadCatch m)
+     (MonadHttp m, MonadTerminalIO m, E.MonadCatch m)
   => Link
   -> m (Response ByteString)
 downloadFile (Link l) =
