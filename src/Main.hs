@@ -2,94 +2,83 @@
 
 module Main where
 
-import           Control.Applicative             (many, (<|>))
-import qualified Control.Exception.Safe          as E
-import           Control.Lens
-import           Control.Monad                   (when)
-import           Data.ByteString.Lazy            (ByteString)
-import qualified Data.ByteString.Lazy            as LBS
-import           Data.Maybe                      (isNothing)
-import           Data.Text                       (Text, pack, replace, toLower,
-                                                  unpack)
-import           Network.HTTP.Client             (HttpException (..),
-                                                  HttpExceptionContent (..))
-import           Network.Wreq                    (Response, get, responseBody,
-                                                  responseStatus, statusCode)
-import           System.Directory                (doesFileExist)
-import           System.Exit                     (exitFailure)
-import           Text.HTML.Scalpel               (Scraper, chroot, scrapeURL,
-                                                  tagSelector, texts, (@:),
-                                                  (@=))
-import           Util                            (split)
+import qualified Control.Exception.Safe as E
+import Control.Lens
+import Control.Monad (when)
+import Data.ByteString.Lazy (ByteString)
+import Data.Maybe (fromJust, isNothing)
+import Data.Text (Text, pack, replace, toLower, unpack)
+import MusicForProgramming.Config (downloadPath, getConfig, getConfigDirectory)
+import MusicForProgramming.Constraints
+  ( MonadFileIO,
+    MonadHttp,
+    MonadTerminalIO,
+    doesFileExistM,
+    httpGetM,
+    putStrLnM,
+    writeByteStringToFileM,
+  )
+import Network.HTTP.Client (HttpException (..), HttpExceptionContent (..))
+import Network.Wreq (Response, responseBody, responseStatus, statusCode)
+import System.Exit (exitFailure)
+import Text.HTML.Scalpel (Scraper, chroot, scrapeURL, tagSelector, texts, (@:), (@=))
+import Util (split)
 
-import           MusicForProgramming.Config      (downloadPath, getConfig,
-                                                  getConfigDirectory)
-import           MusicForProgramming.Constraints (MonadFileIO, MonadHttp,
-                                                  MonadTerminalIO,
-                                                  doesFileExistM, httpGetM,
-                                                  putStrLnM,
-                                                  writeByteStringToFileM)
-
-newtype FileName =
-  FileName String
+newtype FileName
+  = FileName String
   deriving (Show)
 
-newtype Link =
-  Link String
+newtype Link
+  = Link String
   deriving (Show)
 
 main :: IO ()
 main = do
   configDirectory <- getConfigDirectory
   config <- getConfig
-  when
-    (isNothing config)
-    (putStrLn
-       ("Config not available or unreadable @ '" <> configDirectory <> "'") >>
-     exitFailure)
-  let Just cfg = config
+  when (isNothing config) $ do
+    putStrLn ("Config not available or unreadable @ '" <> configDirectory <> "'") >> exitFailure
+  let cfg = fromJust config
   result <- scrapeURL "http://musicforprogramming.net/" mp3Links
+  let downloadAllLinks = mapM_ $ downloadIfNotExists (downloadPath cfg)
   case result of
-    Just mp3s -> do
-      results <-
-        maybe (pure []) (traverse (downloadIfNotExists (downloadPath cfg))) mp3s
-      pure ()
+    Just mp3s -> mapM_ downloadAllLinks mp3s
     Nothing -> putStrLn "Couldn't scrape page for download links."
 
 downloadIfNotExists ::
-     (Monad m, MonadFileIO m, MonadTerminalIO m, MonadHttp m, E.MonadCatch m)
-  => FilePath
-  -> Link
-  -> m (Int, FilePath)
+  (MonadFileIO m, MonadTerminalIO m, MonadHttp m, E.MonadCatch m) =>
+  FilePath ->
+  Link ->
+  m (Maybe (Int, FilePath))
 downloadIfNotExists baseDir l = do
   exists <- doesFileExistM (fileName baseDir l)
   if exists
     then do
       putStrLnM $ fileName baseDir l <> " already downloaded."
-      pure (200, fileName baseDir l)
+      pure $ Just (200, fileName baseDir l)
     else do
       putStrLnM $ "Downloading to " <> fileName baseDir l
-      downloadFile l >>= writeResponseToFile (fileName baseDir l)
+      maybeResponse <- downloadFile l
+      case maybeResponse of
+        Just response ->
+          Just <$> writeResponseToFile (fileName baseDir l) response
+        Nothing ->
+          pure Nothing
 
-downloadFile ::
-     (MonadHttp m, MonadTerminalIO m, E.MonadCatch m)
-  => Link
-  -> m (Response ByteString)
-downloadFile (Link l) =
-  httpGetM l `E.catch`
-  (\(HttpExceptionRequest req (StatusCodeException resp bs)) -> do
-     case resp ^. responseStatus . statusCode of
-       404 -> putStrLnM $ "ERROR: File not found (404) for " <> l
-       code ->
-         putStrLnM $ "ERROR: Unknown error with code " <> show code <> " for " <>
-         l
-     pure $ fmap (const (LBS.fromStrict bs)) resp)
+downloadFile :: (MonadHttp m, MonadTerminalIO m, E.MonadCatch m) => Link -> m (Maybe (Response ByteString))
+downloadFile link@(Link l) =
+  (Just <$> httpGetM l) `E.catch` handleHttpError link
 
-writeResponseToFile ::
-     (Monad m, MonadFileIO m)
-  => FilePath
-  -> Response ByteString
-  -> m (Int, FilePath)
+handleHttpError :: (MonadTerminalIO m) => Link -> HttpException -> m (Maybe (Response ByteString))
+handleHttpError (Link link) (HttpExceptionRequest _req (StatusCodeException resp _bytestring)) = do
+  case resp ^. responseStatus . statusCode of
+    404 -> putStrLnM $ "ERROR: File not found (404) for " <> link
+    code ->
+      putStrLnM $ "ERROR: Unknown HTTP error with code " <> show code <> " for " <> link
+  pure Nothing
+handleHttpError _ _ = pure Nothing
+
+writeResponseToFile :: (Monad m, MonadFileIO m) => FilePath -> Response ByteString -> m (Int, FilePath)
 writeResponseToFile path response = do
   let responseCode = response ^. responseStatus . statusCode
   when
@@ -106,10 +95,10 @@ mp3Elements = do
   spanContents <- texts (tagSelector "span")
   case traverse makeLink (anchorContents ++ spanContents) of
     Just links -> pure . Just $ Link <$> links
-    Nothing    -> pure Nothing
+    Nothing -> pure Nothing
 
 makeLink :: String -> Maybe String
-makeLink (d1:d2:_:_:compiler) =
+makeLink (d1 : d2 : _ : _ : compiler) =
   Just (mconcat [makePrefix d1 d2, sanitizeCompiler compiler, ".mp3"])
 makeLink _ = Nothing
 
@@ -121,9 +110,7 @@ makePrefix d1 d2 =
 
 sanitizeCompiler :: String -> String
 sanitizeCompiler =
-  unpack . toLower . replaceDoubleUnderscores . replaceDots . replaceSpace .
-  replacePlus .
-  pack
+  unpack . toLower . replaceDoubleUnderscores . replaceDots . replaceSpace . replacePlus . pack
 
 replacePlus :: Text -> Text
 replacePlus = replace "+" "and"

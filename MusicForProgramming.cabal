@@ -40,7 +40,7 @@ build-type:          Simple
 
 -- Extra files to be distributed with the package, such as examples or a
 -- README.
-extra-source-files:  CHANGELOG.md
+extra-source-files:
 
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
@@ -58,7 +58,7 @@ executable MusicForProgramming
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.12 && <4.13
+  build-depends:       base >=4.13 && <4.14
                      , scalpel
                      , text
                      , wreq

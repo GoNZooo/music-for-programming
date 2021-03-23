@@ -1,21 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module MusicForProgramming.Config
-  ( getConfig
-  , downloadPath
-  , getConfigDirectory
-  ) where
+  ( getConfig,
+    downloadPath,
+    getConfigDirectory,
+  )
+where
 
-import qualified Data.ByteString.Lazy as LBS
-import           Data.Yaml            (FromJSON (..), (.:))
-import qualified Data.Yaml            as Y
-import           System.Directory     (XdgDirectory (..),
-                                       createDirectoryIfMissing,
-                                       doesDirectoryExist, getXdgDirectory)
+import Data.Yaml (FromJSON (..), (.:))
+import qualified Data.Yaml as Y
+import System.Directory
+  ( XdgDirectory (..),
+    createDirectoryIfMissing,
+    getXdgDirectory,
+  )
 
-newtype Config = Config
-  { downloadPath :: FilePath
-  } deriving (Show)
+newtype Config = Config {downloadPath :: FilePath}
+  deriving (Show)
 
 getConfigDirectory :: IO FilePath
 getConfigDirectory = do
@@ -32,4 +33,4 @@ getConfig = do
 
 instance FromJSON Config where
   parseJSON (Y.Object v) = Config <$> v .: "download-path"
-  parseJSON _            = fail "Need an object to decode"
+  parseJSON _ = fail "Need an object to decode"

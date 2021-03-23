@@ -4,3 +4,5 @@
 *.o
 dist
 dist-newstyle
+.idea
+*.iml
