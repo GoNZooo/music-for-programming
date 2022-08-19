@@ -3,11 +3,8 @@
 module Main where
 
 import qualified Control.Exception.Safe as E
-import Control.Lens
-import Control.Monad (when)
-import Data.ByteString.Lazy (ByteString)
-import Data.Maybe (fromJust, isNothing)
-import Data.Text (Text, pack, replace, toLower, unpack)
+import Data.Maybe (fromJust)
+import Data.Text (pack, replace, toLower, unpack)
 import MusicForProgramming.Config (downloadPath, getConfig, getConfigDirectory)
 import MusicForProgramming.Constraints
   ( MonadFileIO,
@@ -20,7 +17,8 @@ import MusicForProgramming.Constraints
   )
 import Network.HTTP.Client (HttpException (..), HttpExceptionContent (..))
 import Network.Wreq (Response, responseBody, responseStatus, statusCode)
-import System.Exit (exitFailure)
+import Qtility
+import qualified RIO.List.Partial as PartialList
 import Text.HTML.Scalpel (Scraper, chroot, scrapeURL, tagSelector, texts, (@:), (@=))
 import Util (split)
 
@@ -37,13 +35,13 @@ main = do
   configDirectory <- getConfigDirectory
   config <- getConfig
   when (isNothing config) $ do
-    putStrLn ("Config not available or unreadable @ '" <> configDirectory <> "'") >> exitFailure
+    putStrLnM ("Config not available or unreadable @ '" <> configDirectory <> "'") >> exitFailure
   let cfg = fromJust config
   result <- scrapeURL "http://musicforprogramming.net/" mp3Links
   let downloadAllLinks = mapM_ $ downloadIfNotExists (downloadPath cfg)
   case result of
     Just mp3s -> mapM_ downloadAllLinks mp3s
-    Nothing -> putStrLn "Couldn't scrape page for download links."
+    Nothing -> putStrLnM "Couldn't scrape page for download links."
 
 downloadIfNotExists ::
   (MonadFileIO m, MonadTerminalIO m, MonadHttp m, E.MonadCatch m) =>
@@ -65,20 +63,23 @@ downloadIfNotExists baseDir l = do
         Nothing ->
           pure Nothing
 
-downloadFile :: (MonadHttp m, MonadTerminalIO m, E.MonadCatch m) => Link -> m (Maybe (Response ByteString))
-downloadFile link@(Link l) =
-  (Just <$> httpGetM l) `E.catch` handleHttpError link
+downloadFile ::
+  (MonadHttp m, MonadTerminalIO m, E.MonadCatch m) =>
+  Link ->
+  m (Maybe (Response LByteString))
+downloadFile link'@(Link l) =
+  (Just <$> httpGetM l) `E.catch` handleHttpError link'
 
-handleHttpError :: (MonadTerminalIO m) => Link -> HttpException -> m (Maybe (Response ByteString))
-handleHttpError (Link link) (HttpExceptionRequest _req (StatusCodeException resp _bytestring)) = do
+handleHttpError :: (MonadTerminalIO m) => Link -> HttpException -> m (Maybe (Response LByteString))
+handleHttpError (Link link') (HttpExceptionRequest _req (StatusCodeException resp _bytestring)) = do
   case resp ^. responseStatus . statusCode of
-    404 -> putStrLnM $ "ERROR: File not found (404) for " <> link
+    404 -> putStrLnM $ "ERROR: File not found (404) for " <> link'
     code ->
-      putStrLnM $ "ERROR: Unknown HTTP error with code " <> show code <> " for " <> link
+      putStrLnM $ "ERROR: Unknown HTTP error with code " <> show code <> " for " <> link'
   pure Nothing
 handleHttpError _ _ = pure Nothing
 
-writeResponseToFile :: (Monad m, MonadFileIO m) => FilePath -> Response ByteString -> m (Int, FilePath)
+writeResponseToFile :: (MonadFileIO m) => FilePath -> Response LByteString -> m (Int, FilePath)
 writeResponseToFile path response = do
   let responseCode = response ^. responseStatus . statusCode
   when
@@ -130,5 +131,5 @@ fp1 </> fp2 = fp1 <> "/" <> fp2
 fileName :: FilePath -> Link -> FilePath
 fileName baseDir (Link l) = baseDir </> baseName
   where
-    baseName = last pathComponents
+    baseName = PartialList.last pathComponents
     pathComponents = split '/' l

@@ -1,0 +1,146 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           music-for-programming
+version:        1.0.1
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+
+library
+  exposed-modules:
+      Main
+      MusicForProgramming.Config
+      MusicForProgramming.Constraints
+  other-modules:
+      Paths_music_for_programming
+  hs-source-dirs:
+      src
+  default-extensions:
+      ApplicativeDo
+      BangPatterns
+      BinaryLiterals
+      ConstraintKinds
+      DataKinds
+      DefaultSignatures
+      DeriveDataTypeable
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveTraversable
+      DeriveLift
+      DerivingStrategies
+      DoAndIfThenElse
+      DuplicateRecordFields
+      EmptyDataDecls
+      EmptyCase
+      ExistentialQuantification
+      FlexibleContexts
+      FlexibleInstances
+      FunctionalDependencies
+      GADTs
+      GeneralizedNewtypeDeriving
+      InstanceSigs
+      KindSignatures
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoImplicitPrelude
+      OverloadedStrings
+      PartialTypeSignatures
+      PatternGuards
+      PolyKinds
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      TupleSections
+      TypeFamilies
+      TypeSynonymInstances
+      ViewPatterns
+      TypeApplications
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -Wwarn=deprecations -Werror=incomplete-patterns
+  build-depends:
+      base >=4.9.1.0 && <5
+    , ghc
+    , http-client
+    , lens
+    , qtility
+    , rio
+    , safe-exceptions
+    , scalpel
+    , text
+    , wreq
+    , yaml
+  default-language: Haskell2010
+
+test-suite music-for-programming-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_music_for_programming
+  hs-source-dirs:
+      test
+  default-extensions:
+      ApplicativeDo
+      BangPatterns
+      BinaryLiterals
+      ConstraintKinds
+      DataKinds
+      DefaultSignatures
+      DeriveDataTypeable
+      DeriveFoldable
+      DeriveFunctor
+      DeriveGeneric
+      DeriveTraversable
+      DeriveLift
+      DerivingStrategies
+      DoAndIfThenElse
+      DuplicateRecordFields
+      EmptyDataDecls
+      EmptyCase
+      ExistentialQuantification
+      FlexibleContexts
+      FlexibleInstances
+      FunctionalDependencies
+      GADTs
+      GeneralizedNewtypeDeriving
+      InstanceSigs
+      KindSignatures
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoImplicitPrelude
+      OverloadedStrings
+      PartialTypeSignatures
+      PatternGuards
+      PolyKinds
+      RankNTypes
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      TupleSections
+      TypeFamilies
+      TypeSynonymInstances
+      ViewPatterns
+      TypeApplications
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -Wwarn=deprecations -Werror=incomplete-patterns -Wall
+  build-depends:
+      base >=4.9.1.0 && <5
+    , ghc
+    , hspec >=2.0.0
+    , http-client
+    , lens
+    , qtility
+    , rio
+    , safe-exceptions
+    , scalpel
+    , text
+    , wreq
+    , yaml
+  default-language: Haskell2010

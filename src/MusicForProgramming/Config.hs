@@ -7,9 +7,9 @@ module MusicForProgramming.Config
   )
 where
 
-import Data.Yaml (FromJSON (..), (.:))
-import qualified Data.Yaml as Y
-import System.Directory
+import qualified Data.Yaml as Yaml
+import Qtility
+import RIO.Directory
   ( XdgDirectory (..),
     createDirectoryIfMissing,
     getXdgDirectory,
@@ -28,9 +28,9 @@ getConfig :: IO (Maybe Config)
 getConfig = do
   configDirectory <- getConfigDirectory
   let fileName = configDirectory <> "/config.yml"
-  parsedConfig <- Y.decodeFileEither fileName
+  parsedConfig <- Yaml.decodeFileEither fileName
   either (const (pure Nothing)) (pure . Just) parsedConfig
 
 instance FromJSON Config where
-  parseJSON (Y.Object v) = Config <$> v .: "download-path"
+  parseJSON (Yaml.Object v) = Config <$> v .: "download-path"
   parseJSON _ = fail "Need an object to decode"
